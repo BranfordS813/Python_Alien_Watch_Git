@@ -238,7 +238,7 @@ class AlienTime():
                                 return day_suffix
                             else:
                                 day_suffix2 = days % 100
-                                if day_suffix2 !=11 or day_suffix2 !=12 or day_suffix != 13:
+                                if day_suffix2 !=11 and day_suffix2 !=12 and day_suffix2 != 13:
                                     day_suffix = days % 10
                                     return day_suffix
                                 else:
@@ -392,31 +392,33 @@ class AlienTime():
                     
     def analog_disp(self):
 
-        """Run an analog display of the alien time system"""
+        """Run an analog display of the alien time system.
+           As based on: https://www.geeksforgeeks.org/python/draw-clock-design-using-turtle-in-python/#
+        """
 
         ##### Set Constants and Dictionaries #####
-        """Portion copied from digital_disp() function definition."""
-
+    
         # Set constants for time based on dictionary
         SECONDS_PER_MINUTE = self.time_constants["Seconds Per Minute"]
         MINUTES_PER_HOUR = self.time_constants["Minutes Per Hour"]
         HOURS_PER_DAY = self.time_constants["Hours Per Day"]
 
-        # Set constants for date based on dictionary
+        # Set meridian segment 
+        MERIDIAN_SEGMENT = self.meridian_segment
+
+        # Set tick interval
+        TICK_INTERVAL = self.tick_interval
+
+        ### Save the other constants for when implimenting image display
+
         DAYS_PER_WEEK = self.date_constants["Days Per Week"]
         WEEKS_PER_MONTH = self.date_constants["Weeks Per Month"]
         MONTHS_PER_YEAR = self.date_constants["Months Per Year"]
         DAYS_PER_SEASON = self.date_constants["Days Per Season"]
         DAYS_PER_MONTH = self.date_constants["Days Per Month"]
 
-        # set tick interval
-        TICK_INTERVAL = self.tick_interval
-
         # set canon year
         CANON_YEAR = self.canon_year 
-
-        # set meridian segment 
-        MERIDIAN_SEGMENT = self.meridian_segment
 
         # set day names
         DAY_NAMES = self.day_names
@@ -451,35 +453,161 @@ class AlienTime():
         # Initialize canon year
         canon_year = CANON_YEAR 
 
-        # import time.monotonic() and time.time() to run the clock.
-        # time.monotonic() is used to measure time intervals
+        """Method to construe an analog watch face using python's turtle"""
 
+        ##### Analog display logic #####
+
+        # --- 1. SETUP ---
+
+        # Initialize the screen
+        wndw = turtle.Screen()
+        wndw.bgcolor("black")
+        wndw.setup(width=600, height=600)
+        wndw.title(f"Analog Clock Base - {self.planet_name}")
+        # Turn off screen updates for manual control (necessary for smooth animation)
+        wndw.tracer(0) 
+
+        # --- 2. PEN AND HAND CREATION ---
+
+        # Create Pens
+        face_pen = turtle.Turtle() 
+        face_pen.hideturtle()
+        face_pen.speed(0)
+
+        # Create Hands for Hour, Minute, and Second
+
+        def create_hand(color, length, width): 
+            hand = turtle.Turtle()
+            hand.hideturtle()  # Hide the turtle cursor
+            hand.color(color)
+            hand.pensize(width)  # Set line thickness
+            hand.penup()
+            hand.goto(0, 0)  # Start at center
+            return hand
+        
+        sec_hand = create_hand("red", 150, 2)      # Long, thin second hand
+        mn_hand = create_hand("orange", 120, 4)    # Medium minute hand  
+        hr_hand = create_hand("yellow", 80, 6)     # Short, thick hour hand
+
+        # track time with time.monotonic()
         start_time = time.monotonic()
 
-        # 2. Calculate the exact time this tick should finish
+        # --- 3. DRAW STATIC FACE ---
 
-        # The next tick should be at the start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
-        target_time = start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
+        def draw_static_face(pen):
+            # Draw clock face circle
+            pen.up()
+            pen.goto(0, -210)
+            pen.pensize(3)
+            pen.color("green")
+            pen.pendown()
+            pen.circle(210)
+            pen.penup()
 
-        # 3. Calculate how long we still need to sleep
-        time_to_sleep = target_time - time.monotonic()
+            # Draw hour marks - Ticks based on median segments
+            # Set tick segments by dividing  360 by MERIDIAN_SEGMENT
+            TICK_SEGMENT = 360/MERIDIAN_SEGMENT
+            for i in range(MERIDIAN_SEGMENT):
+                pen.goto(0, 0)
+                # Set heading to the current hour position
+                pen.setheading(90 - (TICK_SEGMENT * i))
+                pen.forward(190)
+                pen.pendown()
+                pen.pensize(2)
+                pen.forward(20)
+                pen.penup()
+
+        # --- 4. UPDATE DYNAMIC HANDS ---
+
+        def update_hands(hr_hand, mn_hand, sec_hand, hour_meridian, minute, second):
+            # Hand lengths (adjust these to fit your clock face size)
+            HR_LENGTH = 80
+            MN_LENGTH = 120
+            SEC_LENGTH = 150
+            
+            # --- ANGLE CALCULATION (Crucial for analog accuracy) ---
+                                
+            # the angle is calculated over 360 divided by the time constant: ex: 360/seconds_per_minute
+            # The negative sign is because Turtle's 0 is East, 90 is North, and clock rotation is CW (negative heading change)
+
+            # Second Hand Angle (360 / seconds_per_minute)
+            SECOND_HAND_ANGLE = 360 / SECONDS_PER_MINUTE
+            sec_angle = -second * SECOND_HAND_ANGLE
+                                
+            # Minute Hand Angle (360 / minutes_per_hour + correction for seconds)
+            MINUTE_HAND_ANGLE = 360 / MINUTES_PER_HOUR
+            MINUTE_HAND_CORRECTION = minute * MINUTE_HAND_ANGLE
+            SECOND_CORRECTION = (second / SECONDS_PER_MINUTE) * MINUTE_HAND_ANGLE
+            mn_angle = -(MINUTE_HAND_CORRECTION + SECOND_CORRECTION)
+                                
+            # Hour Hand Angle (360 /hours_per_day + correction for minutes)
+            HOUR_HAND_ANGLE = 360 / MERIDIAN_SEGMENT
+            HOUR_HAND_CORRECTION = hour_meridian * HOUR_HAND_ANGLE
+            MINUTE_CORRECTION = (minute / MINUTES_PER_HOUR) * HOUR_HAND_ANGLE
+            hr_angle = -(HOUR_HAND_CORRECTION + MINUTE_CORRECTION)
+            
+            # Draw second hand (long, thin, red)
+            sec_hand.goto(0, 0)
+            sec_hand.setheading(sec_angle + 90)
+            sec_hand.pendown()
+            sec_hand.forward(SEC_LENGTH)
+            sec_hand.penup()
+            
+            # Draw minute hand (medium, orange)
+            mn_hand.goto(0, 0)
+            mn_hand.setheading(mn_angle + 90)
+            mn_hand.pendown()
+            mn_hand.forward(MN_LENGTH)
+            mn_hand.penup()
+            
+            # Draw hour hand (short, thick, yellow)
+            hr_hand.goto(0, 0)
+            hr_hand.setheading(hr_angle + 90)
+            hr_hand.pendown()
+            hr_hand.forward(HR_LENGTH)
+            hr_hand.penup()
+                                
+            # Update the screen once all hands are repositioned
+            wndw.update()
+
+        # --- 5. MAIN EXECUTION LOOP ---
+
+        # Call static watch face function
+        draw_static_face(face_pen)
+
+        # C. Main Update Loop (i.e., display watch face)
+        try:
+            while True:
+
+                """Portion copied from digital_disp() function definition."""
+
+                # 2. Calculate the exact time this tick should finish
+
+                    # The next tick should be at the start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
+                target_time = start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
+
+                # 3. Calculate how long we still need to sleep
+                time_to_sleep = target_time - time.monotonic()
+
+                # total_seconed_elasped --> outside if block
+                total_seconds_elapsed += 1
                             
-        # 4. Only sleep if the target time hasn't passed (it shouldn't)
-        if time_to_sleep > 0:
-            time.sleep(time_to_sleep)
+                # 4. Only sleep if the target time hasn't passed (it shouldn't)
+                if time_to_sleep > 0:
+                    time.sleep(time_to_sleep)
 
-            # keep this line of code inside the if block if you want more precision; 
-            # keep it the line of code outside the if block if you want the clock to run
-            # despite system lag; in other words, if you want the clock to run despite the 
-            # the computer being slow (or for game/simulation time) keep the line
-            # outside of the if block
+                    # keep this line of code inside the if block if you want more precision; 
+                    # keep it the line of code outside the if block if you want the clock to run
+                    # despite system lag; in other words, if you want the clock to run despite the 
+                    # the computer being slow (or for game/simulation time) keep the line
+                    # outside of the if block
 
-            # Seconds advanced ONLY after the sleep completes
-            total_seconds_elapsed += 1
+                    # # Seconds advanced ONLY after the sleep completes
+                    # total_seconds_elapsed += 1
                             
-            # Minute Logic
-            if total_seconds_elapsed > 0 and (total_seconds_elapsed % SECONDS_PER_MINUTE) == 0:
-                total_minutes_elapsed += 1
+                # Minute Logic
+                if total_seconds_elapsed > 0 and (total_seconds_elapsed % SECONDS_PER_MINUTE) == 0:
+                    total_minutes_elapsed += 1
                                 
                 # Hour Logic
                 if total_minutes_elapsed > 0 and (total_minutes_elapsed % MINUTES_PER_HOUR) == 0:
@@ -500,180 +628,79 @@ class AlienTime():
                                 # Years Logic 
                                 if total_months_elapsed > 0 and (total_months_elapsed % MONTHS_PER_YEAR) == 0:
                                     total_years_elapsed += 1
-                                    # Current Year
+
+                                     # Current Year
                                     canon_year += 1
 
                         # Seasons Logic
                         if total_days_elapsed > 0 and (total_days_elapsed % DAYS_PER_SEASON) == 0:
-                            otal_seasons_elapsed += 1
+                            total_seasons_elapsed += 1
 
-                                                
-                            
-        # Time Rollovers --> display if no duo/hex conversion is used
-        second = total_seconds_elapsed % SECONDS_PER_MINUTE
-        hour_military = total_hours_elapsed % HOURS_PER_DAY
-        # for hour_meridian rollover, increase the index display from 0
-        # to 1: first hour to the specified MERIDIAN SEGMENT
-        hour_meridian_raw = total_hours_elapsed % MERIDIAN_SEGMENT
-        hour_meridian = hour_meridian_raw + 1
-        minute = total_minutes_elapsed % MINUTES_PER_HOUR
+                # Time Rollovers --> display if no duo/hex conversion is used
+                second = total_seconds_elapsed % SECONDS_PER_MINUTE
+                hour_military = total_hours_elapsed % HOURS_PER_DAY
+                # for hour_meridian rollover, increase the index display from 0
+                # to 1: first hour to the specified MERIDIAN SEGMENT
+                hour_meridian_raw = total_hours_elapsed % MERIDIAN_SEGMENT
+                hour_meridian = hour_meridian_raw + 1
+                minute = total_minutes_elapsed % MINUTES_PER_HOUR
 
-        # apply same index increase method to days, weeks, and months.
-        days_raw = total_days_elapsed % DAYS_PER_WEEK
-        days = days_raw + 1
-        weeks_raw = total_weeks_elapsed % WEEKS_PER_MONTH
-        weeks = weeks_raw + 1
-        months_raw = total_months_elapsed % MONTHS_PER_YEAR
-        months = months_raw + 1
-        seasons = total_seasons_elapsed % DAYS_PER_SEASON
+                # apply same index increase method to days, weeks, and months.
+                days_raw = total_days_elapsed % DAYS_PER_WEEK
+                days = days_raw + 1
+                weeks_raw = total_weeks_elapsed % WEEKS_PER_MONTH
+                weeks = weeks_raw + 1
+                months_raw = total_months_elapsed % MONTHS_PER_YEAR
+                months = months_raw + 1
+                seasons = total_seasons_elapsed % DAYS_PER_SEASON
                     
-        # Rollover for the day of the month (previous version)
-        day_of_month = total_days_elapsed % DAYS_PER_MONTH
+                # Rollover for the day of the month (previous version)
+                day_of_month = total_days_elapsed % DAYS_PER_MONTH
+
+                days_name_disp = DAY_NAMES.get(days-1) # Omit "N/A" to avoid math domain errors
+                months_name_disp = MONTH_NAMES.get(months-1)
+
+                # find the correct suffix for the day of the month, 
+
+                def day_suf_len(day_input):
+                    day_string = str(day_input)
+                    day_len = len(day_string)
+
+                    if day_len == 1 or day_len == 2:
+                        day_suffix = days % 10
+                        return day_suffix
+                    else:
+                        day_suffix2 = days % 100
+                        if day_suffix2 !=11 and day_suffix2 !=12 and day_suffix2 != 13:
+                            day_suffix = days % 10
+                            return day_suffix
+                        else:
+                            day_suffix = day_suffix2
+                            return day_suffix
+                    
+                # define a switch (match) case that handles adding suffix strings to the end of days
+                def suffix(day_post_len):
+                    """function that serves as a match case (switch statement) for assiging a suffix string
+                    to a number
+                    """
+                    match day_post_len: 
+                        case 0 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13: 
+                            suffix = "th"
+                            return suffix 
+                        case 1:
+                            suffix = "st"
+                            return suffix
+                        case 2: 
+                            suffix = "nd"
+                            return suffix
+                        case 3: 
+                            suffix = "rd"
+                            return suffix
                             
-                        
-        days_name_disp = DAY_NAMES.get(days-1) # Omit "N/A" to avoid math domain errors
-        months_name_disp = MONTH_NAMES.get(months-1)
+                # create a variable to insert in custom suffix method that gives the approprite suffix string for the last integer(s) digits
+                days_post_suf_len = day_suf_len(days)
+                day_suffix_assigned = str(suffix(days_post_suf_len)) 
 
-        # find the correct suffix for the day of the month, 
-
-        def day_suf_len(day_input):
-            day_string = str(day_input)
-            day_len = len(day_string)
-
-            if day_len == 1 or day_len == 2:
-                day_suffix = days % 10
-                return day_suffix
-            else:
-                day_suffix2 = days % 100
-            if day_suffix2 !=11 or day_suffix2 !=12 or day_suffix != 13:
-                day_suffix = days % 10
-                return day_suffix
-            else:
-                day_suffix = day_suffix2
-                return day_suffix
-
-        # define a switch (match) case that handles adding suffix strings to the end of days
-
-        def suffix(day_post_len):
-            """function that serves as a match case (switch statement) for assiging a suffix string
-            to a number
-            """
-            match day_post_len: 
-                case 0 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13: 
-                    suffix = "th"
-                    return suffix 
-                case 1:
-                    suffix = "st"
-                    return suffix
-                case 2: 
-                    suffix = "nd"
-                    return suffix
-                case 3: 
-                    suffix = "rd"
-                    return suffix
-                            
-        # create a variable to insert in custom suffix method that gives the approprite suffix string for the last integer(s) digits
-        days_post_suf_len = day_suf_len(days)
-        day_suffix_assigned = str(suffix(days_post_suf_len)) 
-
-        """Method to construe an analog watch face using python's turtle"""
-
-        ##### Analog display logic #####
-
-        # --- 1. SETUP ---
-
-        # Initialize the screen
-        wndw = turtle.Screen()
-        wndw.bgcolor("black")
-        wndw.setup(width=600, height=600)
-        wndw.title("Analog Clock Base")
-        # Turn off screen updates for manual control (necessary for smooth animation)
-        wndw.tracer(0) 
-
-        # --- 2. PEN AND HAND CREATION ---
-
-        # Create a common drawing pen for static elements
-        def create_pen(color, speed=0):
-            pen = turtle.Turtle()
-            pen.hideturtle()
-            pen.color(color)
-            pen.speed(speed)
-            return pen
-        
-        # Create the specific hands (Hour, Minute, Second)
-        def create_hand(shape, color, length, size):
-            hand = turtle.Turtle()
-            hand.shape(shape)
-            hand.color(color)
-            hand.shapesize(stretch_wid=size[0], stretch_len=size[1]) # stretch_len influences how long the hands are
-            hand.penup()
-            hand.speed(0) # Max speed
-            return hand
-
-        # --- 3. DRAW STATIC FACE ---
-
-        def draw_static_face(pen):
-            # Draw clock face circle
-            pen.up()
-            pen.goto(0, -210)
-            pen.pensize(3)
-            pen.color("green")
-            pen.pendown()
-            pen.circle(210)
-            pen.penup()
-
-            # Draw hour marks (16 ticks)
-            for i in range(MERIDIAN_SEGMENT):
-                pen.goto(0, 0)
-                # Set heading to the current hour position
-                pen.setheading(90 - (i * 30))
-                pen.forward(190)
-                pen.pendown()
-                pen.pensize(2)
-                pen.forward(20)
-                pen.penup()
-
-        # --- 4. UPDATE DYNAMIC HANDS ---
-
-        def update_hands(hr_hand, mn_hand, sec_hand):
-            # Get current system time
-            now = datetime.datetime.now()
-            hour = now.hour % 12  # Convert to 12-hour format (0-11)
-            minute = now.minute
-            second = now.second
-
-            # --- ANGLE CALCULATION (Crucial for analog accuracy) ---
-                                
-            # Second Hand Angle (360 degrees / 60 seconds = 6 degrees/second)
-            # The negative sign is because Turtle's 0 is East, 90 is North, and clock rotation is CW (negative heading change)
-            sec_angle = -second * 6
-            sec_hand.setheading(sec_angle + 90) # Added 90 to start at North
-                                
-            # Minute Hand Angle (360 / 60 = 6 degrees/minute + correction for seconds)
-            mn_angle = -(minute * 6 + (second / 60) * 6)
-            mn_hand.setheading(mn_angle + 90)
-                                
-            # Hour Hand Angle (360 / 12 = 30 degrees/hour + correction for minutes)
-            hr_angle = -(hour * 30 + (minute / 60) * 30)
-            hr_hand.setheading(hr_angle + 90)
-                                
-            # Update the screen once all hands are repositioned
-            wndw.update()
-
-        # --- 5. MAIN EXECUTION LOOP ---
-
-        # A. Initial Setup (runs once)
-        static_pen = create_pen("gray")
-        draw_static_face(static_pen)
-                                
-        # B. Create the Hands
-        sec_hand = create_hand("triangle", "red", 110, (0.1, 16)) # Elongate the hands by changing the second tuple numbers
-        mn_hand = create_hand("triangle", "blue", 150, (0.2, 14))
-        hr_hand = create_hand("triangle", "white", 80, (0.3, 9))
-
-        # C. Main Update Loop (i.e., display watch face)
-        try:
-            while True:
                 # Clear the static pen once (optional, but clean)
                 # static_pen.clear() 
                                         
@@ -683,10 +710,12 @@ class AlienTime():
                 hr_hand.clear()
                                         
                 # Update the hand positions
-                update_hands(hr_hand, mn_hand, sec_hand)
-                                        
-                # Wait for one second before the next update
-                time.sleep(1)
+                update_hands(hr_hand, mn_hand, sec_hand, hour_meridian, minute, second)
+                
+                # # Maybe disable, as the sleep logic has been accounted for previously as based 
+                # # on the digital display funciton.
+                # # Wait for one second before the next update
+                # time.sleep(1)
 
         except (KeyboardInterrupt, RecursionError):
             print("\nClock stopped by user interruption.")
