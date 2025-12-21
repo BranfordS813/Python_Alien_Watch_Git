@@ -389,10 +389,13 @@ class AlienTime():
         except (KeyboardInterrupt, RecursionError):
                 print("\nClock stopped by user interruption.")
 
-    def analog_disp(self): 
+                    
+    def analog_disp(self):
+
         """Run an analog display of the alien time system"""
 
         ##### Set Constants and Dictionaries #####
+        """Portion copied from digital_disp() function definition."""
 
         # Set constants for time based on dictionary
         SECONDS_PER_MINUTE = self.time_constants["Seconds Per Minute"]
@@ -420,7 +423,7 @@ class AlienTime():
 
         # Set month names 
         MONTH_NAMES = self.month_names
-        
+            
         # Set meridian dictionary
         MERIDIAN = self.meridian 
 
@@ -453,281 +456,249 @@ class AlienTime():
 
         start_time = time.monotonic()
 
-        # Create a Console instance for the multi-line print for the analog clock
-        console = Console()
-        try: 
-                # Use the Live context manager to handle the continuous updating
-                # Put it inside the try-except block to account for error handling
-                # after clock interruption.
-                with Live(console=console, screen=True) as live:
+        # 2. Calculate the exact time this tick should finish
 
-                    # Initiate the display    
-                    input("Press Any key to start")
+        # The next tick should be at the start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
+        target_time = start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
 
-                    while True:
-
-                        # 2. Calculate the exact time this tick should finish
-                        # The next tick should be at the start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
-                        target_time = start_time + (total_seconds_elapsed + 1) * TICK_INTERVAL
-
-                        # 3. Calculate how long we still need to sleep
-                        time_to_sleep = target_time - time.monotonic()
-                        
-                        # 4. Only sleep if the target time hasn't passed (it shouldn't)
-                        if time_to_sleep > 0:
-                            time.sleep(time_to_sleep)
-
-                            # keep this line of code inside the if block if you want more precision; 
-                            # keep it the line of code outside the if block if you want the clock to run
-                            # despite system lag; in other words, if you want the clock to run despite the 
-                            # the computer being slow (or for game/simulation time) keep the line
-                            # outside of the if block
-
-                        # Seconds advanced ONLY after the sleep completes
-                        total_seconds_elapsed += 1
-                        
-                        # Minute Logic
-                        if total_seconds_elapsed > 0 and (total_seconds_elapsed % SECONDS_PER_MINUTE) == 0:
-                            total_minutes_elapsed += 1
+        # 3. Calculate how long we still need to sleep
+        time_to_sleep = target_time - time.monotonic()
                             
-                            # Hour Logic
-                            if total_minutes_elapsed > 0 and (total_minutes_elapsed % MINUTES_PER_HOUR) == 0:
-                                total_hours_elapsed += 1
+        # 4. Only sleep if the target time hasn't passed (it shouldn't)
+        if time_to_sleep > 0:
+            time.sleep(time_to_sleep)
+
+            # keep this line of code inside the if block if you want more precision; 
+            # keep it the line of code outside the if block if you want the clock to run
+            # despite system lag; in other words, if you want the clock to run despite the 
+            # the computer being slow (or for game/simulation time) keep the line
+            # outside of the if block
+
+            # Seconds advanced ONLY after the sleep completes
+            total_seconds_elapsed += 1
+                            
+            # Minute Logic
+            if total_seconds_elapsed > 0 and (total_seconds_elapsed % SECONDS_PER_MINUTE) == 0:
+                total_minutes_elapsed += 1
                                 
-                                # Days Logic
-                                if total_hours_elapsed > 0 and (total_hours_elapsed % HOURS_PER_DAY) == 0:
-                                    total_days_elapsed += 1
-
-                                    # Weeks Logic
-                                    if total_days_elapsed > 0 and (total_days_elapsed % DAYS_PER_WEEK) == 0:
-                                        total_weeks_elapsed += 1
-
-                                        # Months Logic 
-                                        if total_weeks_elapsed > 0 and (total_weeks_elapsed % WEEKS_PER_MONTH) == 0:
-                                            total_months_elapsed += 1
-
-                                            # Years Logic 
-                                            if total_months_elapsed > 0 and (total_months_elapsed % MONTHS_PER_YEAR) == 0:
-                                                total_years_elapsed += 1
-                                                # Current Year
-                                                canon_year += 1
-
-                                    # Seasons Logic
-                                    if total_days_elapsed > 0 and (total_days_elapsed % DAYS_PER_SEASON) == 0:
-                                        total_seasons_elapsed += 1
-
-                                            
-                        
-                        # Time Rollovers --> display if no duo/hex conversion is used
-                        second = total_seconds_elapsed % SECONDS_PER_MINUTE
-                        hour_military = total_hours_elapsed % HOURS_PER_DAY
-                        # for hour_meridian rollover, increase the index display from 0
-                        # to 1: first hour to the specified MERIDIAN SEGMENT
-                        hour_meridian_raw = total_hours_elapsed % MERIDIAN_SEGMENT
-                        hour_meridian = hour_meridian_raw + 1
-                        minute = total_minutes_elapsed % MINUTES_PER_HOUR
-
-                        # apply same index increase method to days, weeks, and months.
-                        days_raw = total_days_elapsed % DAYS_PER_WEEK
-                        days = days_raw + 1
-                        weeks_raw = total_weeks_elapsed % WEEKS_PER_MONTH
-                        weeks = weeks_raw + 1
-                        months_raw = total_months_elapsed % MONTHS_PER_YEAR
-                        months = months_raw + 1
-                        seasons = total_seasons_elapsed % DAYS_PER_SEASON
-                
-                        # Rollover for the day of the month (previous version)
-                        day_of_month = total_days_elapsed % DAYS_PER_MONTH
-                        
-                        # --- MAPPING MODULO RESULTS TO NAMES ---
-                        # Use get() method: https://www.w3schools.com/python/ref_dictionary_get.asp
-                        # Use the dictionary to map the modulo result to the name.
-                        # If the result is 0, the dictionary correctly maps it to the last item.
-                        # rollback the days and months by -1 to get the correct month and day names (0th Index)
-                        days_name_disp = DAY_NAMES.get(days-1) # Omit "N/A" to avoid math domain errors
-                        months_name_disp = MONTH_NAMES.get(months-1)
-
-                        # to find the correct suffix for the day of the month, the last digits
-                        # of the days needs to be found. In general, numbers ending in the th suffix are:
-                        # 11, 12, 13, 0, 4-9; numbes ending in the 1st suffix are 1 (but not 11) 
-                        # numbes ending in the nd suffix are 2 (but not 12), and numbers ending in the 3rd
-                        # suffix are 3 (but not 13) for this, the modulo operator can be used with 10: %10
-                        # to find the last digits for an integer with two numbers. But, if the integer is larger
-                        # than two numbers, then a modulo operator with 100: %100 needs to be used to find two digit
-                        # ending numbers. For example 43 % 10 = 3, hence 43rd; but 1313%10 = 3; so it needs to be 
-                        # expressed as 1313%100 = 13, hence 1313th. the same logic follows for larger numbes than three or
-                        # four integers: 1313131313%100 = 13. %10 also holds up for three integer numbers: 
-                        # 113%10 = 13; 104%10 = 4. A switch statement should suffice with conditionals 
-                        
-                        # # Results in Error ❌
-                        # # find the number of integers within the day number. This will be done with using the 
-                        # # logarthim with base 10, imported from the math module
-                        # day_len = math.floor(math.log10(days))+1
-
-                        # Find appropriate last integer digit numbers str() and len() methods
-
-                        def day_suf_len(day_input):
-                            day_string = str(day_input)
-                            day_len = len(day_string)
-
-                            if day_len == 1 or day_len == 2:
-                                day_suffix = days % 10
-                                return day_suffix
-                            else:
-                                day_suffix2 = days % 100
-                                if day_suffix2 !=11 or day_suffix2 !=12 or day_suffix != 13:
-                                    day_suffix = days % 10
-                                    return day_suffix
-                                else:
-                                    day_suffix = day_suffix2
-                                    return day_suffix
-
-                        # define a switch (match) case that handles adding suffix strings to the end of days
-
-                        def suffix(day_post_len):
-                            """function that serves as a match case (switch statement) for assiging a suffix string
-                               to a number
-                            """
-                            match day_post_len: 
-                                case 0 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13: 
-                                    suffix = "th"
-                                    return suffix 
-                                case 1:
-                                    suffix = "st"
-                                    return suffix
-                                case 2: 
-                                    suffix = "nd"
-                                    return suffix
-                                case 3: 
-                                    suffix = "rd"
-                                    return suffix
-                        
-                        # create a variable to insert in custom suffix method that gives the approprite suffix string for the last integer(s) digits
-                        days_post_suf_len = day_suf_len(days)
-                        day_suffix_assigned = str(suffix(days_post_suf_len)) 
-
-                        ##### Analog display logic #####
-
-                        # --- 1. SETUP ---
-
-                        # Initialize the screen
-                        wndw = turtle.Screen()
-                        wndw.bgcolor("black")
-                        wndw.setup(width=600, height=600)
-                        wndw.title("Analog Clock Base")
-                        # Turn off screen updates for manual control (necessary for smooth animation)
-                        wndw.tracer(0) 
-
-                        # --- 2. PEN AND HAND CREATION ---
-
-                        # Create a common drawing pen for static elements
-                        def create_pen(color, speed=0):
-                            pen = turtle.Turtle()
-                            pen.hideturtle()
-                            pen.color(color)
-                            pen.speed(speed)
-                            return pen
-
-                        # Create the specific hands (Hour, Minute, Second)
-                        def create_hand(shape, color, length, size):
-                            hand = turtle.Turtle()
-                            hand.shape(shape)
-                            hand.color(color)
-                            hand.shapesize(stretch_wid=size[0], stretch_len=size[1]) # stretch_len influences how long the hands are
-                            hand.penup()
-                            hand.speed(0) # Max speed
-                            return hand
-
-                        # --- 3. DRAW STATIC FACE ---
-
-                        def draw_static_face(pen):
-                            # Draw clock face circle
-                            pen.up()
-                            pen.goto(0, -210)
-                            pen.pensize(3)
-                            pen.color("green")
-                            pen.pendown()
-                            pen.circle(210)
-                            pen.penup()
-
-                            # Draw hour marks (16 ticks)
-                            for i in range(MERIDIAN_SEGMENT):
-                                pen.goto(0, 0)
-                                # Set heading to the current hour position
-                                pen.setheading(90 - (i * 30))
-                                pen.forward(190)
-                                pen.pendown()
-                                pen.pensize(2)
-                                pen.forward(20)
-                                pen.penup()
-
-                        # --- 4. UPDATE DYNAMIC HANDS ---
-
-                        def update_hands(hr_hand, mn_hand, sec_hand):
-                            # Get current system time
-                            now = datetime.datetime.now()
-                            hour = now.hour % 12  # Convert to 12-hour format (0-11)
-                            minute = now.minute
-                            second = now.second
-
-                            # --- ANGLE CALCULATION (Crucial for analog accuracy) ---
-                            
-                            # Second Hand Angle (360 degrees / 60 seconds = 6 degrees/second)
-                            # The negative sign is because Turtle's 0 is East, 90 is North, and clock rotation is CW (negative heading change)
-                            sec_angle = -second * 6
-                            sec_hand.setheading(sec_angle + 90) # Added 90 to start at North
-                            
-                            # Minute Hand Angle (360 / 60 = 6 degrees/minute + correction for seconds)
-                            mn_angle = -(minute * 6 + (second / 60) * 6)
-                            mn_hand.setheading(mn_angle + 90)
-                            
-                            # Hour Hand Angle (360 / 12 = 30 degrees/hour + correction for minutes)
-                            hr_angle = -(hour * 30 + (minute / 60) * 30)
-                            hr_hand.setheading(hr_angle + 90)
-                            
-                            # Update the screen once all hands are repositioned
-                            wndw.update()
-
-                        # --- 5. MAIN EXECUTION LOOP ---
-
-                        def run_clock():
-                            # A. Initial Setup (runs once)
-                            static_pen = create_pen("gray")
-                            draw_static_face(static_pen)
-                            
-                            # B. Create the Hands
-                            sec_hand = create_hand("triangle", "red", 110, (0.1, 16)) # Elongate the hands by changing the second tuple numbers
-                            mn_hand = create_hand("triangle", "blue", 150, (0.2, 14))
-                            hr_hand = create_hand("triangle", "white", 80, (0.3, 9))
-
-                            # C. Main Update Loop
-                            try:
-                                while True:
-                                    # Clear the static pen once (optional, but clean)
-                                    # static_pen.clear() 
+                # Hour Logic
+                if total_minutes_elapsed > 0 and (total_minutes_elapsed % MINUTES_PER_HOUR) == 0:
+                    total_hours_elapsed += 1
                                     
-                                    # The hands must be cleared before being redrawn in the new position
-                                    sec_hand.clear()
-                                    mn_hand.clear()
-                                    hr_hand.clear()
-                                    
-                                    # Update the hand positions
-                                    update_hands(hr_hand, mn_hand, sec_hand)
-                                    
-                                    # Wait for one second before the next update
-                                    time.sleep(1)
+                    # Days Logic
+                    if total_hours_elapsed > 0 and (total_hours_elapsed % HOURS_PER_DAY) == 0:
+                        total_days_elapsed += 1
 
-                            except (KeyboardInterrupt, RecursionError):
-                                print("\nClock stopped by user interruption.")
-                            finally:
-                                # Crucial: This ensures the graphics window remains open until manually closed
-                                wndw.mainloop()
+                        # Weeks Logic
+                        if total_days_elapsed > 0 and (total_days_elapsed % DAYS_PER_WEEK) == 0:
+                            total_weeks_elapsed += 1
+
+                            # Months Logic 
+                            if total_weeks_elapsed > 0 and (total_weeks_elapsed % WEEKS_PER_MONTH) == 0:
+                                total_months_elapsed += 1
+
+                                # Years Logic 
+                                if total_months_elapsed > 0 and (total_months_elapsed % MONTHS_PER_YEAR) == 0:
+                                    total_years_elapsed += 1
+                                    # Current Year
+                                    canon_year += 1
+
+                        # Seasons Logic
+                        if total_days_elapsed > 0 and (total_days_elapsed % DAYS_PER_SEASON) == 0:
+                            otal_seasons_elapsed += 1
+
+                                                
+                            
+        # Time Rollovers --> display if no duo/hex conversion is used
+        second = total_seconds_elapsed % SECONDS_PER_MINUTE
+        hour_military = total_hours_elapsed % HOURS_PER_DAY
+        # for hour_meridian rollover, increase the index display from 0
+        # to 1: first hour to the specified MERIDIAN SEGMENT
+        hour_meridian_raw = total_hours_elapsed % MERIDIAN_SEGMENT
+        hour_meridian = hour_meridian_raw + 1
+        minute = total_minutes_elapsed % MINUTES_PER_HOUR
+
+        # apply same index increase method to days, weeks, and months.
+        days_raw = total_days_elapsed % DAYS_PER_WEEK
+        days = days_raw + 1
+        weeks_raw = total_weeks_elapsed % WEEKS_PER_MONTH
+        weeks = weeks_raw + 1
+        months_raw = total_months_elapsed % MONTHS_PER_YEAR
+        months = months_raw + 1
+        seasons = total_seasons_elapsed % DAYS_PER_SEASON
+                    
+        # Rollover for the day of the month (previous version)
+        day_of_month = total_days_elapsed % DAYS_PER_MONTH
+                            
+                        
+        days_name_disp = DAY_NAMES.get(days-1) # Omit "N/A" to avoid math domain errors
+        months_name_disp = MONTH_NAMES.get(months-1)
+
+        # find the correct suffix for the day of the month, 
+
+        def day_suf_len(day_input):
+            day_string = str(day_input)
+            day_len = len(day_string)
+
+            if day_len == 1 or day_len == 2:
+                day_suffix = days % 10
+                return day_suffix
+            else:
+                day_suffix2 = days % 100
+            if day_suffix2 !=11 or day_suffix2 !=12 or day_suffix != 13:
+                day_suffix = days % 10
+                return day_suffix
+            else:
+                day_suffix = day_suffix2
+                return day_suffix
+
+        # define a switch (match) case that handles adding suffix strings to the end of days
+
+        def suffix(day_post_len):
+            """function that serves as a match case (switch statement) for assiging a suffix string
+            to a number
+            """
+            match day_post_len: 
+                case 0 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13: 
+                    suffix = "th"
+                    return suffix 
+                case 1:
+                    suffix = "st"
+                    return suffix
+                case 2: 
+                    suffix = "nd"
+                    return suffix
+                case 3: 
+                    suffix = "rd"
+                    return suffix
+                            
+        # create a variable to insert in custom suffix method that gives the approprite suffix string for the last integer(s) digits
+        days_post_suf_len = day_suf_len(days)
+        day_suffix_assigned = str(suffix(days_post_suf_len)) 
+
+        """Method to construe an analog watch face using python's turtle"""
+
+        ##### Analog display logic #####
+
+        # --- 1. SETUP ---
+
+        # Initialize the screen
+        wndw = turtle.Screen()
+        wndw.bgcolor("black")
+        wndw.setup(width=600, height=600)
+        wndw.title("Analog Clock Base")
+        # Turn off screen updates for manual control (necessary for smooth animation)
+        wndw.tracer(0) 
+
+        # --- 2. PEN AND HAND CREATION ---
+
+        # Create a common drawing pen for static elements
+        def create_pen(color, speed=0):
+            pen = turtle.Turtle()
+            pen.hideturtle()
+            pen.color(color)
+            pen.speed(speed)
+            return pen
+        
+        # Create the specific hands (Hour, Minute, Second)
+        def create_hand(shape, color, length, size):
+            hand = turtle.Turtle()
+            hand.shape(shape)
+            hand.color(color)
+            hand.shapesize(stretch_wid=size[0], stretch_len=size[1]) # stretch_len influences how long the hands are
+            hand.penup()
+            hand.speed(0) # Max speed
+            return hand
+
+        # --- 3. DRAW STATIC FACE ---
+
+        def draw_static_face(pen):
+            # Draw clock face circle
+            pen.up()
+            pen.goto(0, -210)
+            pen.pensize(3)
+            pen.color("green")
+            pen.pendown()
+            pen.circle(210)
+            pen.penup()
+
+            # Draw hour marks (16 ticks)
+            for i in range(MERIDIAN_SEGMENT):
+                pen.goto(0, 0)
+                # Set heading to the current hour position
+                pen.setheading(90 - (i * 30))
+                pen.forward(190)
+                pen.pendown()
+                pen.pensize(2)
+                pen.forward(20)
+                pen.penup()
+
+        # --- 4. UPDATE DYNAMIC HANDS ---
+
+        def update_hands(hr_hand, mn_hand, sec_hand):
+            # Get current system time
+            now = datetime.datetime.now()
+            hour = now.hour % 12  # Convert to 12-hour format (0-11)
+            minute = now.minute
+            second = now.second
+
+            # --- ANGLE CALCULATION (Crucial for analog accuracy) ---
+                                
+            # Second Hand Angle (360 degrees / 60 seconds = 6 degrees/second)
+            # The negative sign is because Turtle's 0 is East, 90 is North, and clock rotation is CW (negative heading change)
+            sec_angle = -second * 6
+            sec_hand.setheading(sec_angle + 90) # Added 90 to start at North
+                                
+            # Minute Hand Angle (360 / 60 = 6 degrees/minute + correction for seconds)
+            mn_angle = -(minute * 6 + (second / 60) * 6)
+            mn_hand.setheading(mn_angle + 90)
+                                
+            # Hour Hand Angle (360 / 12 = 30 degrees/hour + correction for minutes)
+            hr_angle = -(hour * 30 + (minute / 60) * 30)
+            hr_hand.setheading(hr_angle + 90)
+                                
+            # Update the screen once all hands are repositioned
+            wndw.update()
+
+        # --- 5. MAIN EXECUTION LOOP ---
+
+        # A. Initial Setup (runs once)
+        static_pen = create_pen("gray")
+        draw_static_face(static_pen)
+                                
+        # B. Create the Hands
+        sec_hand = create_hand("triangle", "red", 110, (0.1, 16)) # Elongate the hands by changing the second tuple numbers
+        mn_hand = create_hand("triangle", "blue", 150, (0.2, 14))
+        hr_hand = create_hand("triangle", "white", 80, (0.3, 9))
+
+        # C. Main Update Loop (i.e., display watch face)
+        try:
+            while True:
+                # Clear the static pen once (optional, but clean)
+                # static_pen.clear() 
+                                        
+                # The hands must be cleared before being redrawn in the new position
+                sec_hand.clear()
+                mn_hand.clear()
+                hr_hand.clear()
+                                        
+                # Update the hand positions
+                update_hands(hr_hand, mn_hand, sec_hand)
+                                        
+                # Wait for one second before the next update
+                time.sleep(1)
+
+        except (KeyboardInterrupt, RecursionError):
+            print("\nClock stopped by user interruption.")
+        finally:
+            # Crucial: This ensures the graphics window remains open until manually closed
+            wndw.mainloop()
 
 
     """Print statements for diagnostic/display purposes."""
     # printout constant for entered plnaet name 
     def const_planet_name_print(self):
-        """A function taht prints out the entered constant for the planet's name for chonology"""
+        """A function that prints out the entered constant for the planet's name for chonology"""
 
         # print entered planet name
         print("\nEntered planet name:")
@@ -784,7 +755,7 @@ class AlienTime():
 
         # print out tick interval
         print(f"\nEntered tick interval (seconds): {self.tick_interval}")
-    
+        
     # print out entered canon_year 
     def const_canon_year_print(self): 
         """A function that prints out the entered specific canon year"""
